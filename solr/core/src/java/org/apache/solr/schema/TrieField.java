@@ -80,7 +80,9 @@ import org.slf4j.LoggerFactory;
  *
  * @see org.apache.solr.legacy.LegacyNumericRangeQuery
  * @since solr 1.4
+ * @deprecated Trie fields are deprecated as of Solr 7.0
  */
+@Deprecated
 public class TrieField extends NumericFieldType {
   public static final int DEFAULT_PRECISION_STEP = 8;
 
@@ -169,50 +171,14 @@ public class TrieField extends NumericFieldType {
 
     switch (type) {
       case INTEGER:
-        if( sortMissingLast ) {
-          missingValue = top ? Integer.MIN_VALUE : Integer.MAX_VALUE;
-        }
-        else if( sortMissingFirst ) {
-          missingValue = top ? Integer.MAX_VALUE : Integer.MIN_VALUE;
-        }
-        sf = new SortField( field.getName(), SortField.Type.INT, top);
-        sf.setMissingValue(missingValue);
-        return sf;
-      
+        return getSortField(field, SortField.Type.INT, top, Integer.MIN_VALUE, Integer.MAX_VALUE);
       case FLOAT:
-        if( sortMissingLast ) {
-          missingValue = top ? Float.NEGATIVE_INFINITY : Float.POSITIVE_INFINITY;
-        }
-        else if( sortMissingFirst ) {
-          missingValue = top ? Float.POSITIVE_INFINITY : Float.NEGATIVE_INFINITY;
-        }
-        sf = new SortField( field.getName(), SortField.Type.FLOAT, top);
-        sf.setMissingValue(missingValue);
-        return sf;
-      
+        return getSortField(field, SortField.Type.FLOAT, top, Float.NEGATIVE_INFINITY, Float.POSITIVE_INFINITY);
       case DATE: // fallthrough
       case LONG:
-        if( sortMissingLast ) {
-          missingValue = top ? Long.MIN_VALUE : Long.MAX_VALUE;
-        }
-        else if( sortMissingFirst ) {
-          missingValue = top ? Long.MAX_VALUE : Long.MIN_VALUE;
-        }
-        sf = new SortField( field.getName(), SortField.Type.LONG, top);
-        sf.setMissingValue(missingValue);
-        return sf;
-        
+        return getSortField(field, SortField.Type.LONG, top, Long.MIN_VALUE, Long.MAX_VALUE);
       case DOUBLE:
-        if( sortMissingLast ) {
-          missingValue = top ? Double.NEGATIVE_INFINITY : Double.POSITIVE_INFINITY;
-        }
-        else if( sortMissingFirst ) {
-          missingValue = top ? Double.POSITIVE_INFINITY : Double.NEGATIVE_INFINITY;
-        }
-        sf = new SortField( field.getName(), SortField.Type.DOUBLE, top);
-        sf.setMissingValue(missingValue);
-        return sf;
-        
+        return getSortField(field, SortField.Type.DOUBLE, top, Double.NEGATIVE_INFINITY, Double.POSITIVE_INFINITY);
       default:
         throw new SolrException(SolrException.ErrorCode.SERVER_ERROR, "Unknown type for trie field: " + field.name);
     }
@@ -686,6 +652,7 @@ public class TrieField extends NumericFieldType {
 
 }
 
+@Deprecated
 class TrieDateFieldSource extends LongFieldSource {
 
   public TrieDateFieldSource(String field) {

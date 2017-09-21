@@ -36,7 +36,7 @@ Specifies the default operator for query expressions, overriding the default ope
 Specifies a default field, overriding the definition of a default field in the Schema.
 
 `sow`::
-Split on whitespace: if set to `false`, whitespace-separated term sequences will be provided to text analysis in one shot, enabling proper function of analysis filters that operate over term sequences, e.g. multi-word synonyms and shingles. Defaults to `true`: text analysis is invoked separately for each individual whitespace-separated term.
+Split on whitespace. If set to `true`, text analysis is invoked separately for each individual whitespace-separated term.  The default is `false`; whitespace-separated term sequences will be provided to text analysis in one shot, enabling proper function of analysis filters that operate over term sequences, e.g., multi-word synonyms and shingles.
 
 Default parameter values are specified in `solrconfig.xml`, or overridden by query-time values in the request.
 
@@ -350,11 +350,13 @@ This can even be used to cache individual clauses of complex filter queries. In 
 
 === Specifying Dates and Times
 
-Queries against fields using the `TrieDateField` type (typically range queries) should use the <<working-with-dates.adoc#working-with-dates,appropriate date syntax>>:
+Queries against date based fields must use the <<working-with-dates.adoc#working-with-dates,appropriate date formating>>.  Queries for exact date values will require quoting or escaping since `:` is the parser syntax used to denote a field query:
 
-* `timestamp:[* TO NOW]`
+* `createdate:1976-03-06T23\:59\:59.999Z`
+* `createdate:"1976-03-06T23:59:59.999Z"`
 * `createdate:[1976-03-06T23:59:59.999Z TO *]`
 * `createdate:[1995-12-31T23:59:59.999Z TO 2007-03-06T00:00:00Z]`
+* `timestamp:[* TO NOW]`
 * `pubdate:[NOW-1YEAR/DAY TO NOW/DAY+1DAY]`
 * `createdate:[1976-03-06T23:59:59.999Z TO 1976-03-06T23:59:59.999Z+1YEAR]`
 * `createdate:[1976-03-06T23:59:59.999Z/YEAR TO 1976-03-06T23:59:59.999Z]`

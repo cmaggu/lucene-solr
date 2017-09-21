@@ -22,10 +22,10 @@ The Extended DisMax (eDisMax) query parser is an improved version of the <<the-d
 
 In addition to supporting all the DisMax query parser parameters, Extended Dismax:
 
-* supports the <<the-standard-query-parser.adoc#the-standard-query-parser,full Lucene query parser syntax>>.
-* supports queries such as AND, OR, NOT, -, and +.
-* optionally treats "and" and "or" as "AND" and "OR" in Lucene syntax mode.
-* respects the 'magic field' names `\_val_` and `\_query_`. These are not a real fields in the Schema, but if used it helps do special things (like a function query in the case of `\_val_` or a nested query in the case of `\_query_`). If `\_val_` is used in a term or phrase query, the value is parsed as a function.
+* supports the full Lucene query parser syntax with the same enhancements as <<the-standard-query-parser.adoc#the-standard-query-parser,Solr's standard query parser>>.
+** supports queries such as AND, OR, NOT, -, and +.
+** optionally treats "and" and "or" as "AND" and "OR" in Lucene syntax mode.
+** respects the 'magic field' names `\_val_` and `\_query_`. These are not a real fields in the Schema, but if used it helps do special things (like a function query in the case of `\_val_` or a nested query in the case of `\_query_`). If `\_val_` is used in a term or phrase query, the value is parsed as a function.
 * includes improved smart partial escaping in the case of syntax errors; fielded queries, +/-, and phrase queries are still supported in this mode.
 * improves proximity boosting by using word shingles; you do not need the query to match all words in the document before proximity boosting is applied.
 * includes advanced stopword handling: stopwords are not required in the mandatory part of the query but are still used in the proximity boosting part. If a query consists of all stopwords, such as "to be or not to be", then all words are required.
@@ -38,7 +38,7 @@ In addition to supporting all the DisMax query parser parameters, Extended Disma
 In addition to all the <<the-dismax-query-parser.adoc#dismax-query-parser-parameters,DisMax parameters>>, Extended DisMax includes these query parameters:
 
 `sow`::
-Split on whitespace. If set to `false`, whitespace-separated term sequences will be provided to text analysis in one shot, enabling proper function of analysis filters that operate over term sequences, e.g., multi-word synonyms and shingles. Defaults to `true`, so text analysis is invoked separately for each individual whitespace-separated term.
+Split on whitespace. If set to `true`, text analysis is invoked separately for each individual whitespace-separated term.  The default is `false`; whitespace-separated term sequences will be provided to text analysis in one shot, enabling proper function of analysis filters that operate over term sequences, e.g., multi-word synonyms and shingles.
 
 `mm.autoRelax`::
 If `true`, the number of clauses required (<<the-dismax-query-parser.adoc#mm-minimum-should-match-parameter,minimum should match>>) will automatically be relaxed if a clause is removed (by e.g. stopwords filter) from some but not all <<the-dismax-query-parser.adoc#qf-query-fields-parameter,`qf`>> fields. Use this parameter as a workaround if you experience that queries return zero hits due to uneven stopword removal between the `qf` fields.
@@ -218,16 +218,3 @@ _val_:"recip(rord(myfield),1,2,3)"
 _query_:"{!dismax qf=myfield}how now brown cow"
 ----
 
-Although not technically a syntax difference, note that if you use the Solr {solr-javadocs}/solr-core/org/apache/solr/schema/TrieDateField.html[`TrieDateField`] type, any queries on those fields (typically range queries) should use either the Complete ISO 8601 Date syntax that field supports, or the {solr-javadocs}/solr-core/org/apache/solr/util/DateMathParser.html[DateMath Syntax] to get relative dates. For example:
-
-[source,text]
-----
-timestamp:[* TO NOW]
-createdate:[1976-03-06T23:59:59.999Z TO *]
-createdate:[1995-12-31T23:59:59.999Z TO 2007-03-06T00:00:00Z]
-pubdate:[NOW-1YEAR/DAY TO NOW/DAY+1DAY]
-createdate:[1976-03-06T23:59:59.999Z TO 1976-03-06T23:59:59.999Z+1YEAR]
-createdate:[1976-03-06T23:59:59.999Z/YEAR TO 1976-03-06T23:59:59.999Z]
-----
-
-IMPORTANT: `TO` must be uppercase, or Solr will report a 'Range Group' error.

@@ -116,13 +116,13 @@ import org.apache.solr.schema.SchemaField;
 import org.apache.solr.search.SolrIndexSearcher;
 import org.apache.solr.servlet.DirectSolrConnection;
 import org.apache.solr.util.AbstractSolrTestCase;
-import org.apache.solr.util.Java9InitHack;
 import org.apache.solr.util.LogLevel;
 import org.apache.solr.util.RandomizeSSL;
 import org.apache.solr.util.RandomizeSSL.SSLRandomizer;
 import org.apache.solr.util.RefCounted;
 import org.apache.solr.util.RevertDefaultThreadHandlerRule;
 import org.apache.solr.util.SSLTestConfig;
+import org.apache.solr.util.StartupLoggingUtils;
 import org.apache.solr.util.TestHarness;
 import org.apache.solr.util.TestInjection;
 import org.apache.zookeeper.KeeperException;
@@ -162,11 +162,6 @@ import static java.util.Objects.requireNonNull;
 public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   private static final Logger log = LoggerFactory.getLogger(MethodHandles.lookup().lookupClass());
-  
-  // this must be a static init block to be safe!
-  static {
-    Java9InitHack.initJava9();
-  }
 
   private static final List<String> DEFAULT_STACK_FILTERS = Arrays.asList(new String [] {
       "org.junit.",
@@ -186,6 +181,8 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   public static int DEFAULT_CONNECTION_TIMEOUT = 60000;  // default socket connection timeout in ms
   
+  private static String initialRootLogLevel;
+
   protected void writeCoreProperties(Path coreDirectory, String corename) throws IOException {
     Properties props = new Properties();
     props.setProperty("name", corename);
@@ -257,7 +254,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
   @BeforeClass
   public static void setupTestCases() {
-
+    initialRootLogLevel = StartupLoggingUtils.getLogLevelString();
     initClassLogLevels();
 
     initCoreDataDir = createTempDir("init-core-data").toFile();
@@ -327,6 +324,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
 
     LogLevel.Configurer.restoreLogLevels(savedClassLogLevels);
     savedClassLogLevels.clear();
+    StartupLoggingUtils.changeLogLevel(initialRootLogLevel);
   }
   
   /**
@@ -2720,6 +2718,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Long.class, "solr.TrieLongField");
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Double.class, "solr.TrieDoubleField");
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Date.class, "solr.TrieDateField");
+      private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Enum.class, "solr.EnumField");
       
       System.setProperty(NUMERIC_POINTS_SYSPROP, "false");
     } else {
@@ -2731,6 +2730,7 @@ public abstract class SolrTestCaseJ4 extends LuceneTestCase {
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Long.class, "solr.LongPointField");
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Double.class, "solr.DoublePointField");
       private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Date.class, "solr.DatePointField");
+      private_RANDOMIZED_NUMERIC_FIELDTYPES.put(Enum.class, "solr.EnumFieldType");
       
       System.setProperty(NUMERIC_POINTS_SYSPROP, "true");
     }

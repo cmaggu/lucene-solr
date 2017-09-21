@@ -56,7 +56,7 @@ import org.apache.lucene.util.NumericUtils;
 import org.apache.solr.common.SolrDocumentBase;
 import org.apache.solr.core.SolrConfig;
 import org.apache.solr.schema.BoolField;
-import org.apache.solr.schema.EnumField;
+import org.apache.solr.schema.AbstractEnumField;
 import org.apache.solr.schema.NumberType;
 import org.apache.solr.schema.SchemaField;
 import org.apache.solr.schema.TrieDateField;
@@ -79,6 +79,10 @@ public class SolrDocumentFetcher {
   private final boolean enableLazyFieldLoading;
 
   private final SolrCache<Integer,Document> documentCache;
+
+  private final Set<String> allStored;
+
+  private final Set<String> allSingleDV;
 
   /** Contains the names/patterns of all docValues=true,stored=false fields in the schema. */
   private final Set<String> allNonStoredDVs;
@@ -108,11 +112,19 @@ public class SolrDocumentFetcher {
     final Set<String> allNonStoredDVs = new HashSet<>();
     final Set<String> nonStoredDVsWithoutCopyTargets = new HashSet<>();
     final Set<String> storedLargeFields = new HashSet<>();
+    final Set<String> allSingleDVs = new HashSet<>();
+    final Set<String> allStoreds = new HashSet<>();
 
     for (FieldInfo fieldInfo : searcher.getFieldInfos()) { // can find materialized dynamic fields, unlike using the Solr IndexSchema.
       final SchemaField schemaField = searcher.getSchema().getFieldOrNull(fieldInfo.name);
       if (schemaField == null) {
         continue;
+      }
+      if (schemaField.hasDocValues() && !schemaField.multiValued()) {
+        allSingleDVs.add(fieldInfo.name);
+      }
+      if (schemaField.stored()) {
+        allStoreds.add(fieldInfo.name);
       }
       if (!schemaField.stored() && schemaField.hasDocValues()) {
         if (schemaField.useDocValuesAsStored()) {
@@ -132,6 +144,8 @@ public class SolrDocumentFetcher {
     this.allNonStoredDVs = Collections.unmodifiableSet(allNonStoredDVs);
     this.nonStoredDVsWithoutCopyTargets = Collections.unmodifiableSet(nonStoredDVsWithoutCopyTargets);
     this.largeFields = Collections.unmodifiableSet(storedLargeFields);
+    this.allSingleDV = Collections.unmodifiableSet(allSingleDVs);
+    this.allStored = Collections.unmodifiableSet(allStoreds);
   }
 
   public boolean isLazyFieldLoadingEnabled() {
@@ -412,7 +426,7 @@ public class SolrDocumentFetcher {
     final LeafReader leafReader = leafContexts.get(subIndex).reader();
     for (String fieldName : fields) {
       final SchemaField schemaField = searcher.getSchema().getFieldOrNull(fieldName);
-      if (schemaField == null || !schemaField.hasDocValues() || doc.containsKey(fieldName)) {
+      if (schemaField == null || !schemaField.hasDocValues()) {
         log.warn("Couldn't decorate docValues for field: [{}], schemaField: [{}]", fieldName, schemaField);
         continue;
       }
@@ -420,6 +434,7 @@ public class SolrDocumentFetcher {
       if (fi == null) {
         continue; // Searcher doesn't have info about this field, hence ignore it.
       }
+      doc.remove(fieldName);
       final DocValuesType dvType = fi.getDocValuesType();
       switch (dvType) {
         case NUMERIC:
@@ -465,8 +480,8 @@ public class SolrDocumentFetcher {
               newVal = Double.longBitsToDouble(val);
             } else if (schemaField.getType() instanceof TrieDateField) {
               newVal = new Date(val);
-            } else if (schemaField.getType() instanceof EnumField) {
-              newVal = ((EnumField) schemaField.getType()).intValueToStringValue(val.intValue());
+            } else if (schemaField.getType() instanceof AbstractEnumField) {
+              newVal = ((AbstractEnumField)schemaField.getType()).getEnumMapping().intValueToStringValue(val.intValue());
             }
           }
           doc.addField(fieldName, newVal);
@@ -501,7 +516,7 @@ public class SolrDocumentFetcher {
           break;
         case SORTED_NUMERIC:
           final SortedNumericDocValues numericDv = leafReader.getSortedNumericDocValues(fieldName);
-          NumberType type = schemaField.getType().getNumberType();
+          final NumberType type = schemaField.getType().getNumberType();
           if (numericDv != null) {
             if (numericDv.advance(localId) == localId) {
               final List<Object> outValues = new ArrayList<Object>(numericDv.docValueCount());
@@ -509,7 +524,12 @@ public class SolrDocumentFetcher {
                 long number = numericDv.nextValue();
                 switch (type) {
                   case INTEGER:
-                    outValues.add((int)number);
+                    final int raw = (int)number;
+                    if (schemaField.getType() instanceof AbstractEnumField) {
+                      outValues.add(((AbstractEnumField)schemaField.getType()).getEnumMapping().intValueToStringValue(raw));
+                    } else {
+                      outValues.add(raw);
+                    }
                     break;
                   case LONG:
                     outValues.add(number);
@@ -548,6 +568,14 @@ public class SolrDocumentFetcher {
           break;
       }
     }
+  }
+
+  public Set<String> getAllSingleDV() {
+    return allSingleDV;
+  }
+
+  public Set<String> getAllStored() {
+    return allStored;
   }
 
   /**

@@ -159,7 +159,7 @@ public class TestRandomRequestDistribution extends AbstractFullDistribZkTestBase
     Replica leader = null;
     Replica notLeader = null;
 
-    Collection<Replica> replicas = cloudClient.getZkStateReader().getClusterState().getSlice("football", "shard1").getReplicas();
+    Collection<Replica> replicas = cloudClient.getZkStateReader().getClusterState().getCollection("football").getSlice("shard1").getReplicas();
     for (Replica replica : replicas) {
       if (replica.getStr(ZkStateReader.LEADER_PROP) != null) {
         leader = replica;
@@ -179,7 +179,7 @@ public class TestRandomRequestDistribution extends AbstractFullDistribZkTestBase
         ZkStateReader.STATE_PROP, Replica.State.DOWN.toString());
 
     log.info("Forcing {} to go into 'down' state", notLeader.getStr(ZkStateReader.CORE_NAME_PROP));
-    DistributedQueue q = Overseer.getStateUpdateQueue(cloudClient.getZkStateReader().getZkClient());
+    ZkDistributedQueue q = Overseer.getStateUpdateQueue(cloudClient.getZkStateReader().getZkClient());
     q.offer(Utils.toJSON(m));
 
     verifyReplicaStatus(cloudClient.getZkStateReader(), "football", "shard1", notLeader.getName(), Replica.State.DOWN);
